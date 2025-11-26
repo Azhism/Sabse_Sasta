@@ -1,0 +1,216 @@
+// API service for backend communication
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
+
+// Get auth token from AsyncStorage
+export const getToken = async (): Promise<string | null> => {
+  return await AsyncStorage.getItem('auth_token');
+};
+
+// Set auth token in AsyncStorage
+export const setAuthToken = async (token: string): Promise<void> => {
+  await AsyncStorage.setItem('auth_token', token);
+};
+
+// Remove auth token from AsyncStorage
+export const removeAuthToken = async (): Promise<void> => {
+  await AsyncStorage.removeItem('auth_token');
+};
+
+// API request helper
+const apiRequest = async <T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const token = await getToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: response.statusText }));
+    throw new Error(error.error || error.message || 'Request failed');
+  }
+
+  return response.json();
+};
+
+// Auth API
+export const authAPI = {
+  register: async (data: { email: string; password: string; fullName?: string; phone?: string; userType?: 'customer' | 'vendor' }) => {
+    return apiRequest<{ user: any; token: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  login: async (data: { email: string; password: string }) => {
+    return apiRequest<{ user: any; token: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Profile API
+export const profileAPI = {
+  get: async () => {
+    return apiRequest<any>('/profile');
+  },
+
+  update: async (data: { fullName?: string; phone?: string }) => {
+    return apiRequest<any>('/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Products API
+export const productsAPI = {
+  search: async (query: string) => {
+    const params = new URLSearchParams({ name: query });
+    const result = await apiRequest<{ products: any[]; total: number; limit: number; offset: number }>(`/products/search?${params}`);
+    // Backend returns { products, total, limit, offset }, extract products array
+    return result.products || [];
+  },
+
+  getFeatured: async () => {
+    return apiRequest<any[]>('/products/featured');
+  },
+
+  getAll: async () => {
+    return apiRequest<any[]>('/products');
+  },
+};
+
+// Shopping Lists API
+export const shoppingListsAPI = {
+  getAll: async () => {
+    return apiRequest<any[]>('/shopping-lists');
+  },
+
+  getById: async (id: string) => {
+    return apiRequest<any>(`/shopping-lists/${id}`);
+  },
+
+  create: async (data: { name: string; items: Array<{ productId: string; quantity: number }> }) => {
+    // First create the list
+    const list = await apiRequest<any>('/shopping-lists', {
+      method: 'POST',
+      body: JSON.stringify({ name: data.name }),
+    });
+
+    // Get the list ID (could be list_id or id)
+    const listId = list.list_id?.toString() || list.id;
+
+    // Then add items
+    for (const item of data.items) {
+      await apiRequest<any>(`/shopping-lists/${listId}/items`, {
+        method: 'POST',
+        body: JSON.stringify({ productId: item.productId, quantity: item.quantity }),
+      });
+    }
+
+    return list;
+  },
+
+  delete: async (id: string) => {
+    return apiRequest<void>(`/shopping-lists/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  removeItem: async (listId: string, itemId: string) => {
+    return apiRequest<void>(`/shopping-lists/${listId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  calculateCosts: async (id: string) => {
+    return apiRequest<{
+      vendorOptions: Array<{
+        vendor: string;
+        totalCost: number;
+        availableItems: number;
+        totalItems: number;
+        items: Array<{
+          productId: string;
+          productName: string;
+          quantity: number;
+          price: number;
+          total: number;
+        }>;
+        unavailableItems: string[];
+      }>;
+      megaOption: {
+        totalCost: number;
+        items: Array<{
+          productId: string;
+          productName: string;
+          quantity: number;
+          vendor: string;
+          price: number;
+          total: number;
+        }>;
+      };
+    }>(`/shopping-lists/${id}/calculate`, {
+      method: 'POST',
+    });
+  },
+};
+
+// Orders API (to be implemented in backend)
+export const ordersAPI = {
+  create: async (data: any) => {
+    return apiRequest<any>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+// Vendors API (to be implemented in backend)
+export const vendorsAPI = {
+  getUploads: async () => {
+    return apiRequest<any[]>('/vendors/uploads');
+  },
+  uploadFile: async (file: any) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = await getToken();
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_URL}/vendors/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || error.message || 'Upload failed');
+    }
+    return response.json();
+  },
+};
+
+// Health check (note: this endpoint is at root level, not /api)
+export const healthCheck = async () => {
+  const API_BASE = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api').replace('/api', '');
+  const response = await fetch(`${API_BASE}/health`);
+  if (!response.ok) throw new Error('Health check failed');
+  return response.json();
+};

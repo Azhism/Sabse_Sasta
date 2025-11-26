@@ -1,0 +1,4 @@
+project_id = "pkgrkxzwpwejoxxpvyii"
+
+[functions.create-vendor]
+verify_jwt = false
