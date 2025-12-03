@@ -59,6 +59,25 @@ export const authAPI = {
       body: JSON.stringify(data),
     });
   },
+
+  googleAuth: async (data: { idToken: string; userType?: 'customer' | 'vendor' }) => {
+    return apiRequest<{ user: any; token: string }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  requestPasswordReset: async (data: { email: string }) => {
+    return apiRequest<{ message: string }>('/auth/request-reset', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  resetPassword: async (data: { token: string; newPassword: string }) => {
+    return apiRequest<{ message: string }>('/auth/reset', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Profile API

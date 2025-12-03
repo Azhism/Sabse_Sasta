@@ -13,8 +13,9 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (email: string, password: string, fullName?: string, phone?: string, userType?: 'customer' | 'vendor') => Promise<void>;
+  googleLogin: (idToken: string, userType?: 'customer' | 'vendor') => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -55,12 +56,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const response = await authAPI.login({ email, password });
     setAuthToken(response.token);
     setUser(response.user);
+    return response.user;
   };
 
   const register = async (email: string, password: string, fullName?: string, phone?: string, userType: 'customer' | 'vendor' = 'customer') => {
     const response = await authAPI.register({ email, password, fullName, phone, userType });
     setAuthToken(response.token);
     setUser(response.user);
+  };
+
+  const googleLogin = async (idToken: string, userType: 'customer' | 'vendor' = 'customer') => {
+    const response = await authAPI.googleAuth({ idToken, userType });
+    setAuthToken(response.token);
+    setUser(response.user);
+    return response.user;
   };
 
   const logout = () => {
@@ -98,6 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAuthenticated: !!user,
         login,
         register,
+        googleLogin,
         logout,
         refreshUser,
       }}

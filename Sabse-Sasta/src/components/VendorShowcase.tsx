@@ -44,7 +44,7 @@ export const VendorShowcase = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {vendors.map((vendor, index) => (
-            <Card key={index} className="p-6 hover:shadow-lg transition-all hover:-translate-y-1 border-2">
+            <Card key={index} className="p-6 hover:shadow-lg hover:bg-primary/10 transition-all hover:-translate-y-1 border-2">
               <div className="flex items-start justify-between mb-4">
                 <div className="w-12 h-12 bg-gradient-hero rounded-xl flex items-center justify-center">
                   <Store className="h-6 w-6 text-primary-foreground" />

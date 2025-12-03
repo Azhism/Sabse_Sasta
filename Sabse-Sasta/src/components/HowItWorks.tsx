@@ -43,7 +43,7 @@ export const HowItWorks = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {steps.map((step, index) => (
-            <Card key={index} className="p-6 hover:shadow-lg transition-shadow border-2">
+            <Card key={index} className="p-6 hover:shadow-lg hover:bg-primary/10 transition-all border-2">
               <div className={`w-14 h-14 rounded-xl ${step.color} flex items-center justify-center mb-4`}>
                 <step.icon className="h-7 w-7" />
               </div>

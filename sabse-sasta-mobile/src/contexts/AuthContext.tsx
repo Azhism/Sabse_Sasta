@@ -27,30 +27,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   // Check for existing session on mount
-  useEffect(() => {
-    const initAuth = async () => {
-      const token = await getToken();
-      if (token) {
-        try {
-          // Try to get user profile to verify token
-          const userData = await profileAPI.get();
-          setUser({
-            id: userData.id,
-            email: userData.email,
-            name: userData.fullName || userData.name,
-            phone: userData.phone,
-            role: userData.role,
-          });
-        } catch (error) {
-          console.error('Auth initialization error:', error);
-          await removeAuthToken();
-        }
-      }
+useEffect(() => {
+  const initAuth = async () => {
+    try {
+      // Use AsyncStorage directly instead of getToken()
+      const token = await AsyncStorage.getItem('authToken');
+      console.log('Token:', token);
+    } catch (error) {
+      console.log('AsyncStorage error:', error);
+    } finally {
       setLoading(false);
-    };
+    }
+  };
+  
+  initAuth();
+}, []);
 
-    initAuth();
-  }, []);
 
   const login = async (email: string, password: string) => {
     const response = await authAPI.login({ email, password });

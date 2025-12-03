@@ -8,6 +8,7 @@ import heroImage from "@/assets/hero-shopping.jpg";
 export const Hero = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,12 +47,11 @@ export const Hero = () => {
                 <Input 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={
-                    searchQuery
-                      ? ""
-                      : "Search for products... (e.g., Rice, Bread)"
-                  }
-                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto"
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  placeholder={!isFocused ? "Search for products... (e.g., Rice, Bread)" : ""}
+                  className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 h-auto text-base"
+                  style={{ fontSize: '16px', lineHeight: '24px' }}
                 />
               </div>
               <Button type="submit" variant="hero" size="lg">

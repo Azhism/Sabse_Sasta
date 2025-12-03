@@ -38,24 +38,14 @@ const VendorLogin = () => {
       await login(validated.email, validated.password);
       
       // Wait a moment for auth context to update
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Check if user has vendor role
-      // The useEffect will handle navigation if role is vendor
-      // But we need to check here to show error if not vendor
-      if (user?.role !== 'vendor') {
-        toast({
-          title: "Access denied",
-          description: "Vendor account required. Please use a vendor account to access this portal.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       toast({
         title: "Login successful",
         description: "Welcome to the vendor portal",
       });
+      
+      // The useEffect will handle the redirect to vendor dashboard
     } catch (error: any) {
       toast({
         title: "Login failed",

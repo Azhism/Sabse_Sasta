@@ -5,7 +5,6 @@ import { productsAPI } from "@/services/api";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Package2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -158,34 +157,17 @@ const SearchResults = () => {
                 };
 
                 return (
-                  <Card key={key} className="overflow-hidden">
-                    <CardHeader className="bg-muted/30 cursor-pointer" onClick={handleNavigate}>
+                  <Card key={key} className="overflow-hidden hover:shadow-lg hover:bg-primary/10 transition-all">
+                    <CardHeader className="bg-muted/30 cursor-pointer transition-colors" onClick={handleNavigate}>
                       <div className="flex items-start justify-between">
                         <div className="flex gap-4">
                           <div className="flex items-center justify-center w-16 h-16 bg-gradient-hero rounded-lg flex-shrink-0">
                             <Package2 className="h-8 w-8 text-primary-foreground" />
                           </div>
                           <div>
-                            <CardTitle className="text-xl mb-2">
+                            <CardTitle className="text-xl">
                               {productName}
                             </CardTitle>
-                            <div className="flex gap-2 flex-wrap">
-                              {(product.package_size || product.size) && (
-                                <Badge variant="secondary">
-                                  {product.package_size || product.size}
-                                </Badge>
-                              )}
-                              {product.category && (
-                                <Badge variant="outline" className="capitalize">
-                                  {product.category}
-                                </Badge>
-                              )}
-                              {product.brand && (
-                                <Badge variant="secondary" className="bg-accent/40 text-accent-foreground">
-                                  {product.brand}
-                                </Badge>
-                              )}
-                            </div>
                           </div>
                         </div>
                         <div className="text-right">
@@ -194,7 +176,7 @@ const SearchResults = () => {
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <CardContent className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
                       <div>
                         <p className="text-sm text-muted-foreground">Best price</p>
                         <p className="text-3xl font-bold text-primary">
@@ -205,6 +187,31 @@ const SearchResults = () => {
                             Save up to ₨ {savings.toFixed(2)}
                           </p>
                         )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex flex-wrap gap-3">
+                          {items.slice(0, 3).map((v, idx) => (
+                            <button
+                              key={`${key}-vendor-${idx}`}
+                              type="button"
+                              onClick={handleNavigate}
+                              className="flex items-center justify-center rounded-2xl border-2 border-border bg-card px-8 py-6 hover:bg-primary/20 hover:border-primary transition-colors shadow-sm min-w-[220px] min-h-[80px]"
+                            >
+                              <span className="text-base font-medium text-center">
+                                {v.vendor_name || v.vendor || "Vendor"}
+                              </span>
+                            </button>
+                          ))}
+                          {items.length > 3 && (
+                            <button
+                              type="button"
+                              onClick={handleNavigate}
+                              className="flex items-center justify-center rounded-2xl border-2 border-border bg-card px-8 py-6 hover:bg-primary/20 hover:border-primary transition-colors shadow-sm min-w-[100px] min-h-[80px]"
+                            >
+                              <span className="text-3xl font-bold">+</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <Button
                         onClick={handleNavigate}

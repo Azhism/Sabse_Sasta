@@ -131,7 +131,7 @@ export const FeaturedProducts = () => {
           <CarouselContent className="-ml-2 md:-ml-4">
             {products.map((product) => (
               <CarouselItem key={product.id} className="pl-2 md:pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4">
-                <Card className="h-full hover:shadow-lg transition-shadow">
+                <Card className="h-full hover:shadow-lg hover:bg-primary/10 transition-all">
                   <CardHeader>
                     <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-hero rounded-lg mb-4">
                       <Package2 className="h-8 w-8 text-primary-foreground" />

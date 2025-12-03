@@ -1,36 +1,27 @@
 {
   "expo": {
     "name": "Sabse Sasta",
-    "slug": "sabse-sasta-mobile",
+    "slug": "sabse-sasta-mobile", 
+    "scheme": "sabsesasta",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.sabsesasta.mobile"
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png", 
         "backgroundColor": "#ffffff"
-      },
-      "package": "com.sabsesasta.mobile"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "webpack",
-      "output": "static"
-    },
-    "platforms": ["ios", "android", "web"]
+      "bundler": "metro"
+    }
   }
 }
-

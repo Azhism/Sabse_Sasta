@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { User, Mail, Lock, Phone, ArrowLeft, Store } from "lucide-react";
 import { z } from "zod";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { GoogleLogin } from "@react-oauth/google";
 
 const signUpSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -26,7 +27,7 @@ const loginSchema = z.object({
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, googleLogin, isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
   
   // Sign Up Form
@@ -41,11 +42,16 @@ const Auth = () => {
   const [loginPassword, setLoginPassword] = useState("");
 
   useEffect(() => {
-    // Check if user is already logged in
-    if (isAuthenticated) {
-        navigate("/");
-      }
-  }, [isAuthenticated, navigate]);
+    if (!isAuthenticated) {
+      return;
+    }
+
+    if (user?.role === 'vendor') {
+      navigate('/vendor-dashboard');
+    } else {
+      navigate('/');
+    }
+  }, [isAuthenticated, user, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,14 +127,19 @@ const Auth = () => {
 
       setLoading(true);
 
-      await login(validatedData.email, validatedData.password);
+      const userData = await login(validatedData.email, validatedData.password);
 
       toast({
         title: "Welcome back!",
         description: "You've been logged in successfully.",
       });
 
-      navigate("/");
+      // Redirect based on user role
+      if (userData?.role === 'vendor') {
+        navigate("/vendor-dashboard");
+      } else {
+        navigate("/");
+      }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -152,6 +163,36 @@ const Auth = () => {
           });
         }
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any, isSignUp: boolean) => {
+    try {
+      setLoading(true);
+      const userData = await googleLogin(credentialResponse.credential, userType);
+
+      toast({
+        title: isSignUp ? "Account created!" : "Welcome back!",
+        description: isSignUp 
+          ? "Google account linked successfully. Redirecting..." 
+          : "You've been logged in with Google.",
+      });
+
+      setTimeout(() => {
+        if (userData?.role === 'vendor') {
+          navigate("/vendor-dashboard");
+        } else {
+          navigate("/");
+        }
+      }, 1000);
+    } catch (error: any) {
+      toast({
+        title: "Authentication failed",
+        description: error.message || "Google sign-in failed. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -229,6 +270,9 @@ const Auth = () => {
                     />
                   </div>
                 </div>
+                <div className="text-right">
+                  <a href="/reset-password" className="text-sm text-primary hover:underline">Forgot password?</a>
+                </div>
 
                 <Button
                   type="submit"
@@ -238,6 +282,32 @@ const Auth = () => {
                 >
                   {loading ? "Logging in..." : "Login"}
                 </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-muted" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={(credentialResponse) =>
+                      handleGoogleSuccess(credentialResponse, false)
+                    }
+                    onError={() => {
+                      toast({
+                        title: "Login failed",
+                        description: "Google login failed. Please try again.",
+                        variant: "destructive",
+                      });
+                    }}
+                  />
+                </div>
               </form>
             </TabsContent>
 
@@ -343,6 +413,32 @@ const Auth = () => {
                 >
                   {loading ? "Creating account..." : "Create Account"}
                 </Button>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-muted" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or sign up with
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={(credentialResponse) =>
+                      handleGoogleSuccess(credentialResponse, true)
+                    }
+                    onError={() => {
+                      toast({
+                        title: "Sign up failed",
+                        description: "Google sign-up failed. Please try again.",
+                        variant: "destructive",
+                      });
+                    }}
+                  />
+                </div>
               </form>
             </TabsContent>
           </Tabs>

@@ -43,14 +43,14 @@ export const requireVendor = async (
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
 
-    const userRole = await prisma.userRole.findFirst({
+    const user = await prisma.users.findUnique({
       where: {
-        userId: req.userId,
-        role: 'vendor',
+        user_id: parseInt(req.userId as string),
       },
     });
 
-    if (!userRole) {
+    if (!user || user.user_type !== 'vendor') {
+      await prisma.$disconnect();
       return res.status(403).json({ error: 'Vendor access required' });
     }
 
@@ -59,8 +59,10 @@ export const requireVendor = async (
       role: 'vendor',
     };
 
+    await prisma.$disconnect();
     next();
   } catch (error) {
+    console.error('Error checking vendor role:', error);
     return res.status(500).json({ error: 'Error checking vendor role' });
   }
 };

@@ -112,33 +112,6 @@ const ProductVendors = () => {
                       productInfo?.name ||
                       "Product"}
                   </h1>
-                  <div className="flex gap-2 flex-wrap mt-2">
-                    {(productInfo?.package_size ||
-                      productInfo?.variant_info ||
-                      (location.state as LocationState)?.size) && (
-                      <Badge variant="secondary">
-                        {productInfo?.package_size ||
-                          productInfo?.variant_info ||
-                          (location.state as LocationState)?.size}
-                      </Badge>
-                    )}
-                    {(productInfo?.category ||
-                      productInfo?.category_name ||
-                      (location.state as LocationState)?.category) && (
-                      <Badge variant="outline" className="capitalize">
-                        {productInfo?.category ||
-                          productInfo?.category_name ||
-                          (location.state as LocationState)?.category}
-                      </Badge>
-                    )}
-                    {(productInfo?.brand ||
-                      (location.state as LocationState)?.brand) && (
-                      <Badge variant="secondary" className="bg-accent/40">
-                        {productInfo?.brand ||
-                          (location.state as LocationState)?.brand}
-                      </Badge>
-                    )}
-                  </div>
                 </div>
               </div>
             </section>
@@ -156,7 +129,7 @@ const ProductVendors = () => {
                 vendors.map((vendor, index) => (
                   <Card
                     key={`${vendor.vendorId}-${index}`}
-                    className={index === 0 ? "border-primary shadow-lg" : ""}
+                    className={`hover:bg-primary/10 hover:shadow-lg transition-all ${index === 0 ? "border-primary shadow-lg" : ""}`}
                   >
                     <CardHeader className="flex flex-row items-center justify-between">
                       <div>
