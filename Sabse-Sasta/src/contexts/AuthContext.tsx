@@ -14,7 +14,7 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User>;
-  register: (email: string, password: string, fullName?: string, phone?: string, userType?: 'customer' | 'vendor') => Promise<void>;
+  register: (email: string, password: string, fullName: string, phone?: string, userType?: 'customer' | 'vendor') => Promise<void>;
   googleLogin: (idToken: string, userType?: 'customer' | 'vendor') => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return response.user;
   };
 
-  const register = async (email: string, password: string, fullName?: string, phone?: string, userType: 'customer' | 'vendor' = 'customer') => {
+  const register = async (email: string, password: string, fullName: string, phone?: string, userType: 'customer' | 'vendor' = 'customer') => {
     const response = await authAPI.register({ email, password, fullName, phone, userType });
     setAuthToken(response.token);
     setUser(response.user);

@@ -24,7 +24,12 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const lists = await ShoppingListService.getUserLists(req.userId!);
-    res.json(lists);
+    // Transform shopping_list_items to items for frontend compatibility
+    const transformedLists = lists.map(list => ({
+      ...list,
+      items: list.shopping_list_items || [],
+    }));
+    res.json(transformedLists);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -36,7 +41,15 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
       req.params.id,
       req.userId!
     );
-    res.json(list);
+    // Transform shopping_list_items to items for frontend compatibility
+    const transformedList = {
+      ...list,
+      items: (list.shopping_list_items || []).map(item => ({
+        ...item,
+        product: item.products, // Transform products to product
+      })),
+    };
+    res.json(transformedList);
   } catch (error: any) {
     res.status(404).json({ error: error.message });
   }

@@ -17,6 +17,11 @@ export class AuthService {
   static async register(data: RegisterRequest) {
     const { email, password, fullName, phone, userType = 'customer' } = data;
 
+    // Validate required fields
+    if (!email || !password || !fullName) {
+      throw new Error('Email, password, and full name are required');
+    }
+
     // Check if user already exists
     const existingUser = await prisma.users.findUnique({
       where: { email },
@@ -29,45 +34,66 @@ export class AuthService {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user
-    const user = await prisma.users.create({
-      data: {
-        email,
-        password_hash: hashedPassword,
-        name: fullName,
-        user_type: userType,
-      }
-    });
+    try {
+      // Use a transaction to ensure both user and vendor are created atomically
+      const result = await prisma.$transaction(async (tx) => {
+        // Create user
+        const user = await tx.users.create({
+          data: {
+            email,
+            password_hash: hashedPassword,
+            name: fullName,
+            user_type: userType,
+          }
+        });
 
-    // If user is a vendor, create vendor profile
-    if (userType === 'vendor') {
-      await prisma.vendors.create({
-        data: {
-          user_id: user.user_id,
-          vendor_name: fullName,
-          contact_email: email,
-          is_verified: true,
+        // If user is a vendor, create vendor profile
+        if (userType === 'vendor') {
+          await tx.vendors.create({
+            data: {
+              user_id: user.user_id,
+              vendor_name: fullName || email,
+              contact_email: email,
+              is_verified: true,
+              is_approved: false,  // Vendors need admin approval before they can upload
+            }
+          });
         }
+
+        return user;
       });
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: result.user_id, email: result.email },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      return {
+        user: {
+          id: result.user_id,
+          email: result.email,
+          name: result.name,
+          phone: null,
+          role: result.user_type,
+        },
+        token,
+      };
+    } catch (error: any) {
+      // Log the FULL error to see what's actually happening
+      console.error('Full registration error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error meta:', error.meta);
+      
+      if (error.message?.includes('Unique constraint') && error.message?.includes('user_id')) {
+        console.log('Detected orphaned vendor record, attempting cleanup...');
+        // This means there's a vendor record without a user - shouldn't happen with transaction
+        // but we'll throw a clear error
+        throw new Error('Database integrity error. Please contact support or try a different email.');
+      }
+      throw error;
     }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.user_id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    return {
-      user: {
-        id: user.user_id,
-        email: user.email,
-        name: user.name,
-        phone: null,
-        role: user.user_type,
-      },
-      token,
-    };
   }
 
   static async login(data: LoginRequest) {
@@ -160,6 +186,7 @@ export class AuthService {
               vendor_name: name || email.split('@')[0],
               contact_email: email,
               is_verified: true,
+              is_approved: false,  // Vendors need admin approval
             },
           });
         }
@@ -193,28 +220,37 @@ export class AuthService {
 
     // Always respond with success to avoid user enumeration
     if (!user) {
-      // still create no token, just return success
-      return { message: 'If the email exists, a password reset link has been sent.' };
+      // Don't reveal if user exists or not
+      return { message: 'If the email exists, a new password has been sent.' };
     }
 
-    // Create token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    // Generate new random password (8 characters: letters + numbers)
+    const newPassword = crypto.randomBytes(4).toString('hex'); // Generates 8 character password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    await prisma.password_resets.create({
-      data: {
-        user_id: user.user_id,
-        token,
-        expires_at: expiresAt,
-      },
+    // Update user's password in database
+    await prisma.users.update({
+      where: { user_id: user.user_id },
+      data: { password_hash: hashedPassword },
     });
-
-    const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
     
-    // Send email
-    await EmailService.sendPasswordResetEmail(email, resetLink, user.name || undefined);
+    // Log new password to console for development
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔑 NEW PASSWORD GENERATED');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`Email: ${email}`);
+    console.log(`User: ${user.name}`);
+    console.log(`New Password: ${newPassword}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    
+    // Send email with new password (will fail silently if SMTP not configured)
+    try {
+      await EmailService.sendNewPasswordEmail(email, newPassword, user.name || undefined);
+    } catch (error) {
+      console.log('⚠️ Email sending failed (SMTP not configured). Use the password above.');
+    }
 
-    return { message: 'If the email exists, a password reset link has been sent.' };
+    return { message: 'If the email exists, a new password has been sent.' };
   }
 
   static async resetPassword(token: string, newPassword: string) {

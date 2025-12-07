@@ -7,9 +7,11 @@ const router = Router();
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const data: RegisterRequest = req.body;
+    console.log('Registration request:', { email: data.email, userType: data.userType, hasPassword: !!data.password, hasFullName: !!data.fullName });
     const result = await AuthService.register(data);
     res.status(201).json(result);
   } catch (error: any) {
+    console.error('Registration error:', error.message);
     res.status(400).json({ error: error.message });
   }
 });

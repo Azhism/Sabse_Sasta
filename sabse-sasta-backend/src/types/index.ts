@@ -18,7 +18,7 @@ export interface JWTPayload extends JwtPayload {
 export interface RegisterRequest {
   email: string;
   password: string;
-  fullName?: string;
+  fullName: string;
   phone?: string;
   userType?: 'customer' | 'vendor';
 }

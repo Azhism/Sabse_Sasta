@@ -22,6 +22,7 @@ const VendorDashboard = () => {
   const [uploading, setUploading] = useState(false);
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [vendorName, setVendorName] = useState("");
+  const [isApproved, setIsApproved] = useState<boolean | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, isAuthenticated, logout } = useAuth();
@@ -32,8 +33,28 @@ const VendorDashboard = () => {
       return;
     }
     setVendorName(user.name || user.email || "Vendor");
+    checkApprovalStatus();
     fetchUploads();
   }, [isAuthenticated, user, navigate]);
+
+  const checkApprovalStatus = async () => {
+    try {
+      const status = await vendorsAPI.getStatus();
+      setIsApproved(status.approved);
+      
+      if (!status.approved) {
+        // Redirect to pending approval page
+        navigate("/vendor-pending-approval");
+      }
+    } catch (error: any) {
+      console.error("Error checking approval status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to check vendor approval status",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchUploads = async () => {
     setLoading(true);

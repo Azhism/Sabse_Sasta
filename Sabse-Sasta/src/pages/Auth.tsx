@@ -61,7 +61,7 @@ const Auth = () => {
         email: signUpEmail,
         password: signUpPassword,
         fullName,
-        phone,
+        phone: phone || undefined, // Convert empty string to undefined
       });
 
       setLoading(true);
@@ -77,18 +77,19 @@ const Auth = () => {
       toast({
         title: "Account created!",
         description: userType === 'vendor' 
-          ? "Vendor account created! Redirecting to vendor dashboard..." 
+          ? "Vendor account created! Your account is pending approval." 
           : "You've been signed up successfully. Redirecting...",
       });
 
       setTimeout(() => {
         if (userType === 'vendor') {
-          navigate("/vendor-dashboard");
+          navigate("/vendor-pending-approval");
         } else {
           navigate("/");
         }
       }, 1000);
     } catch (error: any) {
+      console.error('Signup error:', error);
       if (error instanceof z.ZodError) {
         toast({
           title: "Validation error",
@@ -106,7 +107,7 @@ const Auth = () => {
         } else {
           toast({
             title: "Sign up failed",
-            description: errorMessage,
+            description: `${errorMessage}${userType === 'vendor' ? ' (Vendor account)' : ''}`,
             variant: "destructive",
           });
         }

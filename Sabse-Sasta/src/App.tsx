@@ -19,6 +19,8 @@ import CreateShoppingList from "./pages/CreateShoppingList";
 import ViewShoppingList from "./pages/ViewShoppingList";
 import VendorLogin from "./pages/VendorLogin";
 import VendorDashboard from "./pages/VendorDashboard";
+import VendorPendingApproval from "./pages/VendorPendingApproval";
+import VendorProtectedRoute from "./components/VendorProtectedRoute";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,19 +42,20 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/" element={<Index />} />
+                <Route path="/" element={<VendorProtectedRoute><Index /></VendorProtectedRoute>} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/search" element={<SearchResults />} />
-                <Route path="/products/:id/vendors" element={<ProductVendors />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<Checkout />} />
-                <Route path="/shopping-lists" element={<ShoppingLists />} />
-                <Route path="/shopping-lists/new" element={<CreateShoppingList />} />
-                <Route path="/shopping-lists/:id" element={<ViewShoppingList />} />
+                <Route path="/profile" element={<VendorProtectedRoute><Profile /></VendorProtectedRoute>} />
+                <Route path="/search" element={<VendorProtectedRoute><SearchResults /></VendorProtectedRoute>} />
+                <Route path="/products/:id/vendors" element={<VendorProtectedRoute><ProductVendors /></VendorProtectedRoute>} />
+                <Route path="/cart" element={<VendorProtectedRoute><Cart /></VendorProtectedRoute>} />
+                <Route path="/checkout" element={<VendorProtectedRoute><Checkout /></VendorProtectedRoute>} />
+                <Route path="/shopping-lists" element={<VendorProtectedRoute><ShoppingLists /></VendorProtectedRoute>} />
+                <Route path="/shopping-lists/new" element={<VendorProtectedRoute><CreateShoppingList /></VendorProtectedRoute>} />
+                <Route path="/shopping-lists/:id" element={<VendorProtectedRoute><ViewShoppingList /></VendorProtectedRoute>} />
                 <Route path="/vendor-login" element={<VendorLogin />} />
                 <Route path="/vendor-dashboard" element={<VendorDashboard />} />
+                <Route path="/vendor-pending-approval" element={<VendorPendingApproval />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

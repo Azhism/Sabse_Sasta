@@ -46,7 +46,7 @@ const apiRequest = async <T>(
 
 // Auth API
 export const authAPI = {
-  register: async (data: { email: string; password: string; fullName?: string; phone?: string; userType?: 'customer' | 'vendor' }) => {
+  register: async (data: { email: string; password: string; fullName: string; phone?: string; userType?: 'customer' | 'vendor' }) => {
     return apiRequest<{ user: any; token: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -227,6 +227,9 @@ export const ordersAPI = {
 
 // Vendors API (to be implemented in backend)
 export const vendorsAPI = {
+  getStatus: async () => {
+    return apiRequest<{ approved: boolean; verified: boolean; vendorName: string; createdAt: string }>('/vendors/status');
+  },
   getUploads: async () => {
     return apiRequest<any[]>('/vendors/uploads');
   },

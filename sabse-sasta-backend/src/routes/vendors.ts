@@ -3,6 +3,7 @@ import multer from 'multer';
 import { parse } from 'csv-parse/sync';
 import { PrismaClient } from '@prisma/client';
 import { authenticate, requireVendor, AuthRequest } from '../middleware/auth';
+import { checkVendorApproval } from '../middleware/checkVendorApproval';
 import path from 'path';
 import fs from 'fs/promises';
 import * as XLSX from 'xlsx';
@@ -30,8 +31,38 @@ const upload = multer({
 router.use(authenticate);
 router.use(requireVendor);
 
-// File upload route
-router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Response) => {
+// Get vendor approval status
+router.get('/status', async (req: AuthRequest, res: Response) => {
+  try {
+    const vendor = await prisma.vendors.findUnique({
+      where: { user_id: parseInt(req.userId!) },
+      select: {
+        vendor_id: true,
+        vendor_name: true,
+        is_approved: true,
+        is_verified: true,
+        created_at: true,
+      },
+    });
+
+    if (!vendor) {
+      return res.status(404).json({ error: 'Vendor profile not found' });
+    }
+
+    res.json({
+      approved: vendor.is_approved || false,
+      verified: vendor.is_verified || false,
+      vendorName: vendor.vendor_name,
+      createdAt: vendor.created_at,
+    });
+  } catch (error: any) {
+    console.error('Error fetching vendor status:', error);
+    res.status(500).json({ error: 'Failed to fetch vendor status' });
+  }
+});
+
+// File upload route - NOW REQUIRES APPROVAL
+router.post('/upload', checkVendorApproval, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

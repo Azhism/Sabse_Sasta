@@ -79,6 +79,66 @@ export class EmailService {
     }
   }
 
+  static async sendNewPasswordEmail(
+    to: string,
+    newPassword: string,
+    userName?: string
+  ): Promise<boolean> {
+    try {
+      const transport = initializeTransporter();
+
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: linear-gradient(135deg, #00c151 0%, #00a640 100%); padding: 20px; text-align: center; color: white;">
+            <h1 style="margin: 0;">Sabse Sasta</h1>
+            <p style="margin: 5px 0 0 0;">Price Comparison Platform</p>
+          </div>
+          <div style="padding: 30px; background-color: #f9f9f9;">
+            <p>Hello ${userName || 'User'},</p>
+            <p>Your password has been reset as requested. Here is your new password:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <div style="background-color: #f0f0f0; padding: 20px; border-radius: 8px; border: 2px dashed #00c151;">
+                <p style="margin: 0 0 10px 0; color: #666; font-size: 12px;">Your New Password:</p>
+                <p style="margin: 0; font-size: 24px; font-weight: bold; color: #00c151; letter-spacing: 2px; font-family: monospace;">
+                  ${newPassword}
+                </p>
+              </div>
+            </div>
+            <p style="color: #e74c3c; font-weight: bold;">⚠️ Important Security Notice:</p>
+            <ul style="color: #666; font-size: 14px; line-height: 1.6;">
+              <li>Please change this password after logging in</li>
+              <li>Go to your Profile → Change Password</li>
+              <li>Never share your password with anyone</li>
+            </ul>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="http://localhost:8081/auth" style="background-color: #00c151; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                Login Now
+              </a>
+            </div>
+            <p style="color: #999; font-size: 11px;">If you didn't request a password reset, please contact support immediately.</p>
+          </div>
+          <div style="background-color: #f0f0f0; padding: 20px; text-align: center; font-size: 11px; color: #666;">
+            <p>&copy; ${new Date().getFullYear()} Sabse Sasta. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+
+      const result = await transport.sendMail({
+        from: `"${FROM_NAME}" <${FROM_EMAIL}>`,
+        to,
+        subject: 'Your New Password - Sabse Sasta',
+        html: htmlContent,
+        text: `Your new password is: ${newPassword}\n\nPlease change it after logging in.\nLogin at: http://localhost:8081/auth`,
+      });
+
+      console.log(`New password email sent to ${to}:`, result.messageId);
+      return true;
+    } catch (error: any) {
+      console.error('Error sending new password email:', error.message);
+      return false;
+    }
+  }
+
   static async sendWelcomeEmail(to: string, userName?: string): Promise<boolean> {
     try {
       const transport = initializeTransporter();

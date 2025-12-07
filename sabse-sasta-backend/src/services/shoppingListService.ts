@@ -31,15 +31,15 @@ interface MegaOption {
 
 export class ShoppingListService {
   static async createList(userId: string, name: string) {
-    return prisma.shoppingList.create({
+    return prisma.shopping_lists.create({
       data: {
-        userId,
-        list_name: name, // Use list_name instead of name
+        user_id: parseInt(userId),
+        list_name: name,
       },
       include: {
-        items: {
+        shopping_list_items: {
           include: {
-            product: true,
+            products: true,
           },
         },
       },
@@ -47,17 +47,17 @@ export class ShoppingListService {
   }
 
   static async getUserLists(userId: string) {
-    return prisma.shoppingList.findMany({
-      where: { userId },
+    return prisma.shopping_lists.findMany({
+      where: { user_id: parseInt(userId) },
       include: {
-        items: {
+        shopping_list_items: {
           include: {
-            product: true,
+            products: true,
           },
         },
       },
       orderBy: {
-        createdAt: 'desc', // Use createdAt instead of updatedAt
+        created_at: 'desc',
       },
     });
   }
@@ -74,15 +74,15 @@ export class ShoppingListService {
       throw new Error('Invalid list ID: must be a number');
     }
     
-    const list = await prisma.shoppingList.findFirst({
+    const list = await prisma.shopping_lists.findFirst({
       where: {
-        list_id: listIdNum as any, // Use list_id with integer value
-        userId,
+        list_id: listIdNum,
+        user_id: parseInt(userId),
       },
       include: {
-        items: {
+        shopping_list_items: {
           include: {
-            product: true,
+            products: true,
           },
         },
       },
@@ -102,13 +102,13 @@ export class ShoppingListService {
     const listIdNum = parseInt(listId, 10);
     const listIdFilter = isNaN(listIdNum) ? listId : listIdNum;
 
-    return prisma.shoppingList.update({
-      where: { list_id: listIdFilter as any }, // Use list_id instead of id
-      data: { list_name: name }, // Use list_name instead of name
+    return prisma.shopping_lists.update({
+      where: { list_id: listIdNum },
+      data: { list_name: name },
       include: {
-        items: {
+        shopping_list_items: {
           include: {
-            product: true,
+            products: true,
           },
         },
       },
@@ -123,14 +123,14 @@ export class ShoppingListService {
     const listIdFilter = isNaN(listIdNum) ? listId : listIdNum;
 
     // Remove all items first to avoid FK constraints
-    await prisma.shoppingListItem.deleteMany({
+    await prisma.shopping_list_items.deleteMany({
       where: {
-        listId: listIdFilter as any,
+        list_id: listIdNum,
       },
     });
 
-    return prisma.shoppingList.delete({
-      where: { list_id: listIdFilter as any }, // Use list_id instead of id
+    return prisma.shopping_lists.delete({
+      where: { list_id: listIdNum },
     });
   }
 
@@ -149,35 +149,35 @@ export class ShoppingListService {
     const productIdFilter = isNaN(productIdNum) ? productId : productIdNum;
 
     // Check if item already exists - use Prisma field names (camelCase)
-    const existingItem = await prisma.shoppingListItem.findFirst({
+    const existingItem = await prisma.shopping_list_items.findFirst({
       where: {
-        listId: listIdFilter as any,
-        productId: productIdFilter as any,
+        list_id: listIdNum,
+        product_id: productIdNum,
       },
     });
 
     if (existingItem) {
       // Get the primary key field name (could be item_id or id)
       const itemPrimaryKey = (existingItem as any).item_id || (existingItem as any).id;
-      return prisma.shoppingListItem.update({
-        where: { item_id: itemPrimaryKey as any },
+      return prisma.shopping_list_items.update({
+        where: { item_id: itemPrimaryKey },
         data: { 
-          quantity: ((existingItem.quantity || 0) + quantity) as any,
+          quantity: ((existingItem.quantity || 0) + quantity),
         },
         include: {
-          product: true,
+          products: true,
         },
       });
     }
 
-    return prisma.shoppingListItem.create({
+    return prisma.shopping_list_items.create({
       data: {
-        listId: listIdFilter as any,
-        productId: productIdFilter as any,
-        quantity: quantity as any,
+        list_id: listIdNum,
+        product_id: productIdNum,
+        quantity: quantity,
       },
       include: {
-        product: true,
+        products: true,
       },
     });
   }
@@ -202,16 +202,16 @@ export class ShoppingListService {
     }
 
     if (quantity <= 0) {
-      return prisma.shoppingListItem.delete({
-        where: { item_id: itemIdNum as any },
+      return prisma.shopping_list_items.delete({
+        where: { item_id: itemIdNum },
       });
     }
 
-    return prisma.shoppingListItem.update({
-      where: { item_id: itemIdNum as any },
-      data: { quantity: quantity as any },
+    return prisma.shopping_list_items.update({
+      where: { item_id: itemIdNum },
+      data: { quantity: quantity },
       include: {
-        product: true,
+        products: true,
       },
     });
   }
@@ -234,8 +234,8 @@ export class ShoppingListService {
       throw new Error('Invalid item ID: must be a number');
     }
 
-    return prisma.shoppingListItem.delete({
-      where: { item_id: itemIdNum as any },
+    return prisma.shopping_list_items.delete({
+      where: { item_id: itemIdNum },
     });
   }
 
@@ -246,7 +246,7 @@ export class ShoppingListService {
     // Get the shopping list with items
     const list = await this.getListById(listId, userId);
     
-    if (!list.items || list.items.length === 0) {
+    if (!list.shopping_list_items || list.shopping_list_items.length === 0) {
       return {
         vendorOptions: [],
         megaOption: { totalCost: 0, items: [] },
@@ -414,13 +414,13 @@ export class ShoppingListService {
       const vendorItems: VendorOption['items'] = [];
       const unavailableItems: string[] = [];
 
-      for (const listItem of list.items) {
+      for (const listItem of list.shopping_list_items) {
         const productId = listItem.product_id || listItem.productId;
         const quantity = listItem.quantity_value || listItem.quantity || 1;
         
         // Find products matching this item from this vendor
         // Match by product_id or by name if product_id doesn't match
-        const product = listItem.product;
+        const product = listItem.products;
         // Try multiple field names that Prisma might return
         const productName = product?.display_name || 
                            product?.product_name || 
@@ -479,7 +479,7 @@ export class ShoppingListService {
           vendor: vendorLabel,
         totalCost,
         availableItems: vendorItems.length,
-        totalItems: list.items.length,
+        totalItems: list.shopping_list_items.length,
         items: vendorItems,
         unavailableItems,
       });
@@ -488,11 +488,11 @@ export class ShoppingListService {
     // Calculate mega option (optimal mix - cheapest vendor for each product)
     let megaTotalCost = 0;
     
-    for (const listItem of list.items) {
+    for (const listItem of list.shopping_list_items) {
       const productId = listItem.product_id || listItem.productId;
       const quantity = listItem.quantity_value || listItem.quantity || 1;
       
-      const product = listItem.product;
+      const product = listItem.products;
       // Try multiple field names that Prisma might return
       const productName = product?.display_name || 
                          product?.product_name || 
