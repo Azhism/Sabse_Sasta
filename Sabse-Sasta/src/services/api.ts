@@ -162,8 +162,21 @@ export const shoppingListsAPI = {
     });
   },
 
+  updateName: async (id: string, name: string) => {
+    return apiRequest<any>(`/shopping-lists/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name }),
+    });
+  },
+
   removeItem: async (listId: string, itemId: string) => {
     return apiRequest<void>(`/shopping-lists/${listId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  clearAllItems: async (listId: string) => {
+    return apiRequest<void>(`/shopping-lists/${listId}/items`, {
       method: 'DELETE',
     });
   },

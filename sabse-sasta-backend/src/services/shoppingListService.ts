@@ -134,6 +134,20 @@ export class ShoppingListService {
     });
   }
 
+  static async clearAllItems(listId: string, userId: string) {
+    const list = await this.getListById(listId, userId);
+    
+    // Convert listId to integer if it's a valid number
+    const listIdNum = parseInt(listId, 10);
+
+    // Remove all items from the list
+    return prisma.shopping_list_items.deleteMany({
+      where: {
+        list_id: listIdNum,
+      },
+    });
+  }
+
   static async addItemToList(
     listId: string,
     userId: string,

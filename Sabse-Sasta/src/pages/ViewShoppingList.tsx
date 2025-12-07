@@ -7,6 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -18,7 +19,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calculator, ShoppingCart, Loader2, Trash2, Plus, Minus } from "lucide-react";
+import { Calculator, ShoppingCart, Loader2, Trash2, Plus, Minus, Edit2, Check, X, Trash } from "lucide-react";
 
 interface ListItem {
   id: string;
@@ -84,6 +85,8 @@ const ViewShoppingList = () => {
   const { addMultipleToCart } = useCart();
   
   const [listName, setListName] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [tempName, setTempName] = useState("");
   const [items, setItems] = useState<ListItem[]>([]);
   const [vendorCosts, setVendorCosts] = useState<VendorCost[]>([]);
   const [megaOption, setMegaOption] = useState<MegaOption | null>(null);
@@ -395,6 +398,69 @@ const ViewShoppingList = () => {
     navigate("/cart");
   };
 
+  const startEditingName = () => {
+    setTempName(listName);
+    setEditingName(true);
+  };
+
+  const cancelEditingName = () => {
+    setTempName("");
+    setEditingName(false);
+  };
+
+  const saveListName = async () => {
+    if (!id || !tempName.trim()) {
+      toast({
+        title: "Error",
+        description: "List name cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await shoppingListsAPI.updateName(id, tempName.trim());
+      setListName(tempName.trim());
+      setEditingName(false);
+      toast({
+        title: "Success",
+        description: "List name updated",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update list name",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const clearAllItems = async () => {
+    if (!id) return;
+
+    if (!window.confirm("Are you sure you want to clear all items from this list?")) {
+      return;
+    }
+
+    try {
+      await shoppingListsAPI.clearAllItems(id);
+      setItems([]);
+      setCalculated(false);
+      setVendorCosts([]);
+      setMegaOption(null);
+      toast({
+        title: "Success",
+        description: "All items cleared from the list",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to clear items",
+        variant: "destructive",
+      });
+    }
+  };
+
   const moveMegaOptionToCart = () => {
     if (!megaOption) return;
     
@@ -439,9 +505,37 @@ const ViewShoppingList = () => {
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-start mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">{listName}</h1>
-              <p className="text-muted-foreground mt-2">
+            <div className="flex-1">
+              {editingName ? (
+                <div className="flex items-center gap-2 mb-2">
+                  <Input
+                    value={tempName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    className="text-3xl font-bold h-12 max-w-md border-2 border-green-500 focus-visible:ring-green-500"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveListName();
+                      if (e.key === 'Escape') cancelEditingName();
+                    }}
+                  />
+                  <Button onClick={saveListName} size="icon" variant="ghost">
+                    <Check className="h-5 w-5 text-green-600" />
+                  </Button>
+                  <Button onClick={cancelEditingName} size="icon" variant="ghost">
+                    <X className="h-5 w-5 text-destructive" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="bg-primary text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                    <h1 className="text-3xl font-bold">{listName}</h1>
+                    <Button onClick={startEditingName} size="icon" variant="ghost" className="hover:bg-primary/80">
+                      <Edit2 className="h-4 w-4 text-white" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <p className="text-muted-foreground">
                 {items.length} item{items.length !== 1 ? 's' : ''} in this list
               </p>
             </div>
@@ -469,7 +563,17 @@ const ViewShoppingList = () => {
             <Card>
               <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <CardTitle>Items in List</CardTitle>
-                <Popover open={addProductOpen} onOpenChange={setAddProductOpen}>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={clearAllItems}
+                    disabled={items.length === 0}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash className="mr-2 h-4 w-4" />
+                    Clear All
+                  </Button>
+                  <Popover open={addProductOpen} onOpenChange={setAddProductOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="outline">
                       <Plus className="mr-2 h-4 w-4" />
@@ -509,6 +613,7 @@ const ViewShoppingList = () => {
                     </Command>
                   </PopoverContent>
                 </Popover>
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -568,6 +673,13 @@ const ViewShoppingList = () => {
                     );
                   })}
                 </div>
+                {items.length > 0 && (
+                  <div className="mt-6 pt-4 border-t">
+                    <p className="text-lg font-semibold text-right">
+                      Total Items: {items.length}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (

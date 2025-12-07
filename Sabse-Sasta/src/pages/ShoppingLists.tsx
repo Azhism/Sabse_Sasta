@@ -7,7 +7,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, Eye, Calendar } from "lucide-react";
+import { Plus, Trash2, Calendar } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -133,7 +133,7 @@ const ShoppingLists = () => {
               {lists.map((list) => (
                 <Card
                   key={list.id}
-                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  className="hover:shadow-md hover:border-primary transition-all cursor-pointer"
                   onClick={() => navigate(`/shopping-lists/${list.id}`)}
                   role="button"
                   tabIndex={0}
@@ -148,16 +148,6 @@ const ShoppingLists = () => {
                         </CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/shopping-lists/${list.id}`);
-                          }}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"

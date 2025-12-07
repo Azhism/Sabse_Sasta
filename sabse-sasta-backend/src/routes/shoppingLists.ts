@@ -133,6 +133,18 @@ router.delete('/:id/items/:itemId', async (req: AuthRequest, res: Response) => {
   }
 });
 
+router.delete('/:id/items', async (req: AuthRequest, res: Response) => {
+  try {
+    await ShoppingListService.clearAllItems(
+      req.params.id,
+      req.userId!
+    );
+    res.json({ message: 'All items cleared from list' });
+  } catch (error: any) {
+    res.status(404).json({ error: error.message });
+  }
+});
+
 router.post('/:id/calculate', async (req: AuthRequest, res: Response) => {
   try {
     const result = await ShoppingListService.calculateShoppingListCosts(

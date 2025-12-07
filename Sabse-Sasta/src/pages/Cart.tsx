@@ -73,97 +73,88 @@ const Cart = () => {
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-6">
-              {Object.entries(itemsByVendor).map(([vendor, vendorItems]) => (
-                <Card key={vendor}>
-                  <CardHeader className="bg-muted/30">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base sm:text-lg md:text-xl flex items-center gap-2">
-                        <Package2 className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                        <span className="truncate">{vendor}</span>
-                      </CardTitle>
-                      <Badge variant="secondary" className="text-xs sm:text-sm whitespace-nowrap">
-                        ₨ {getVendorTotal(vendor).toFixed(2)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      {vendorItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pb-4 border-b last:border-0"
-                        >
-                          <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
-                            <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-hero rounded-lg flex-shrink-0">
-                              <Package2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary-foreground" />
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
-                              <div className="flex gap-1.5 sm:gap-2 mt-1 flex-wrap">
-                                <Badge variant="outline" className="text-xs">
-                                  {item.brand}
-                                </Badge>
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.size}
-                                </Badge>
-                              </div>
-                              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                                ₨ {item.price.toFixed(2)} each
-                              </p>
-                            </div>
+            <div className="lg:col-span-2">
+              <Card className="border-2 border-primary">
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    {items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pb-4 border-b last:border-0"
+                      >
+                        <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                          <div className="flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-gradient-hero rounded-lg flex-shrink-0">
+                            <Package2 className="h-6 w-6 sm:h-8 sm:w-8 text-primary-foreground" />
                           </div>
-
-                          <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
-                            <div className="flex items-center gap-1.5 sm:gap-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10"
-                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              >
-                                <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </Button>
-                              <Input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateQuantity(item.id, parseInt(e.target.value) || 1)
-                                }
-                                className="w-12 sm:w-16 h-8 sm:h-10 text-center text-sm"
-                              />
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 sm:h-10 sm:w-10"
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              >
-                                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </Button>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm sm:text-base truncate">{item.name}</h3>
+                            <div className="flex gap-1.5 sm:gap-2 mt-1 flex-wrap">
+                              <Badge variant="outline" className="text-xs">
+                                {item.brand}
+                              </Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                {item.size}
+                              </Badge>
                             </div>
-
-                            <div className="text-right flex flex-col items-end gap-1">
-                              <p className="text-base sm:text-lg font-bold text-primary whitespace-nowrap">
-                                ₨ {(item.price * item.quantity).toFixed(2)}
-                              </p>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeFromCart(item.id)}
-                                className="text-destructive hover:text-destructive h-7 px-2"
-                              >
-                                <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </Button>
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                              ₨ {item.price.toFixed(2)} each
+                            </p>
+                            <div className="flex items-center gap-1 mt-1">
+                              <Package2 className="h-3 w-3 text-primary" />
+                              <p className="text-xs font-medium text-primary">{item.vendor}</p>
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+
+                        <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 sm:h-10 sm:w-10"
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            >
+                              <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                updateQuantity(item.id, parseInt(e.target.value) || 1)
+                              }
+                              className="w-12 sm:w-16 h-8 sm:h-10 text-center text-sm"
+                            />
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 sm:h-10 sm:w-10"
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            >
+                              <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                          </div>
+
+                          <div className="text-right flex flex-col items-end gap-1">
+                            <p className="text-base sm:text-lg font-bold text-primary whitespace-nowrap">
+                              ₨ {(item.price * item.quantity).toFixed(2)}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFromCart(item.id)}
+                              className="text-destructive hover:text-destructive h-7 px-2"
+                            >
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Order Summary */}
