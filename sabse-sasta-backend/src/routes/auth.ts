@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { AuthService } from '../services/authService';
 import { RegisterRequest, LoginRequest } from '../types';
+import pool from '../config/database';
 
 const router = Router();
 
@@ -19,9 +20,13 @@ router.post('/register', async (req: Request, res: Response) => {
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const data: LoginRequest = req.body;
+    console.log('Login attempt for email:', data.email);
     const result = await AuthService.login(data);
+    console.log('Login successful for:', data.email);
     res.json(result);
   } catch (error: any) {
+    console.error('Login error:', error.message);
+    console.error('Full error:', error);
     res.status(401).json({ error: error.message });
   }
 });
@@ -62,6 +67,41 @@ router.post('/reset', async (req: Request, res: Response) => {
     res.json(result);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// Verify current user's token
+router.get('/me', async (req: Request, res: Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = AuthService.verifyToken(token);
+    
+    // Get user details from database
+    const result = await pool.query(
+      'SELECT user_id, email, name, user_type FROM users WHERE user_id = $1',
+      [decoded.userId]
+    );
+
+    const user = result.rows[0];
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    res.json({
+      user: {
+        id: user.user_id,
+        email: user.email,
+        name: user.name,
+        role: user.user_type,
+      }
+    });
+  } catch (error: any) {
+    res.status(401).json({ error: 'Invalid or expired token' });
   }
 });
 

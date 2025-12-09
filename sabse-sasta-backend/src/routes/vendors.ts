@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
 import { parse } from 'csv-parse/sync';
-import { PrismaClient } from '@prisma/client';
+import pool from '../config/database';
 import { authenticate, requireVendor, AuthRequest } from '../middleware/auth';
 import { checkVendorApproval } from '../middleware/checkVendorApproval';
 import path from 'path';
@@ -9,7 +9,6 @@ import fs from 'fs/promises';
 import * as XLSX from 'xlsx';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Configure multer for file uploads
 const upload = multer({
@@ -34,16 +33,14 @@ router.use(requireVendor);
 // Get vendor approval status
 router.get('/status', async (req: AuthRequest, res: Response) => {
   try {
-    const vendor = await prisma.vendors.findUnique({
-      where: { user_id: parseInt(req.userId!) },
-      select: {
-        vendor_id: true,
-        vendor_name: true,
-        is_approved: true,
-        is_verified: true,
-        created_at: true,
-      },
-    });
+    const result = await pool.query(
+      `SELECT vendor_id, vendor_name, is_approved, is_verified, created_at
+       FROM vendors
+       WHERE user_id = $1`,
+      [parseInt(req.userId!)]
+    );
+
+    const vendor = result.rows[0];
 
     if (!vendor) {
       return res.status(404).json({ error: 'Vendor profile not found' });
@@ -69,11 +66,12 @@ router.post('/upload', checkVendorApproval, upload.single('file'), async (req: A
     }
 
     // Get vendor record for this user
-    const vendor = await prisma.vendors.findUnique({
-      where: {
-        user_id: parseInt(req.userId!),
-      },
-    });
+    const vendorResult = await pool.query(
+      'SELECT vendor_id FROM vendors WHERE user_id = $1',
+      [parseInt(req.userId!)]
+    );
+
+    const vendor = vendorResult.rows[0];
 
     if (!vendor) {
       return res.status(404).json({ error: 'Vendor profile not found' });
@@ -149,58 +147,54 @@ router.post('/upload', checkVendorApproval, upload.single('file'), async (req: A
           }
 
           // Find or create product
-          let product = await prisma.products.findFirst({
-            where: {
-              product_name: productName,
-              brand: brand,
-            },
-          });
+          const productSearchResult = await pool.query(
+            'SELECT product_id FROM products WHERE product_name = $1 AND (brand = $2 OR (brand IS NULL AND $2 IS NULL))',
+            [productName, brand]
+          );
+
+          let product = productSearchResult.rows[0];
 
           if (!product) {
             // Create new product
-            product = await prisma.products.create({
-              data: {
-                product_name: productName,
-                base_product_name: normalizedRecord['base_product_name'] || productName,
-                variant_name: normalizedRecord['variant'] || normalizedRecord['variant_name'] || null,
-                brand: brand,
-                quantity_value: normalizedRecord['quantity'] ? parseFloat(normalizedRecord['quantity']) : null,
-                quantity_unit: normalizedRecord['unit'] || normalizedRecord['quantity_unit'] || null,
-                package_size: normalizedRecord['package_size'] || normalizedRecord['pack_size'] || null,
-                category_id: normalizedRecord['category_id'] ? parseInt(normalizedRecord['category_id']) : null,
-              },
-            });
+            const productCreateResult = await pool.query(
+              `INSERT INTO products (product_name, base_product_name, variant_name, brand, quantity_value, quantity_unit, package_size, category_id, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+               RETURNING product_id`,
+              [
+                productName,
+                normalizedRecord['base_product_name'] || productName,
+                normalizedRecord['variant'] || normalizedRecord['variant_name'] || null,
+                brand,
+                normalizedRecord['quantity'] ? parseFloat(normalizedRecord['quantity']) : null,
+                normalizedRecord['unit'] || normalizedRecord['quantity_unit'] || null,
+                normalizedRecord['package_size'] || normalizedRecord['pack_size'] || null,
+                normalizedRecord['category_id'] ? parseInt(normalizedRecord['category_id']) : null
+              ]
+            );
+            product = productCreateResult.rows[0];
           }
 
           // Create or update vendor listing
-          const existingListing = await prisma.vendor_listings.findFirst({
-            where: {
-              product_id: product.product_id,
-              vendor_id: vendor.vendor_id,
-            },
-          });
+          const listingSearchResult = await pool.query(
+            'SELECT listing_id FROM vendor_listings WHERE product_id = $1 AND vendor_id = $2',
+            [product.product_id, vendor.vendor_id]
+          );
+
+          const existingListing = listingSearchResult.rows[0];
 
           if (existingListing) {
-            await prisma.vendor_listings.update({
-              where: {
-                listing_id: existingListing.listing_id,
-              },
-              data: {
-                price: numericPrice,
-                stock_quantity: numericStock,
-                is_available: true,
-              },
-            });
+            await pool.query(
+              `UPDATE vendor_listings
+               SET price = $1, stock_quantity = $2, is_available = true, updated_at = NOW()
+               WHERE listing_id = $3`,
+              [numericPrice, numericStock, existingListing.listing_id]
+            );
           } else {
-            await prisma.vendor_listings.create({
-              data: {
-                product_id: product.product_id,
-                vendor_id: vendor.vendor_id,
-                price: numericPrice,
-                stock_quantity: numericStock,
-                is_available: true,
-              },
-            });
+            await pool.query(
+              `INSERT INTO vendor_listings (product_id, vendor_id, price, stock_quantity, is_available, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, true, NOW(), NOW())`,
+              [product.product_id, vendor.vendor_id, numericPrice, numericStock]
+            );
           }
 
           productsCreated++;
@@ -216,16 +210,21 @@ router.post('/upload', checkVendorApproval, upload.single('file'), async (req: A
     }
 
     // Create upload record
-    const vendorUpload = await prisma.vendor_uploads.create({
-      data: {
-        vendor_id: vendor.vendor_id,
-        file_name: req.file.originalname,
-        file_url: req.file.path,
-        status: productsCreated > 0 ? 'processed' : 'failed',
-        processed_at: new Date(),
-        error_message: errors.length > 0 ? errors.join('; ') : null,
-      },
-    });
+    const uploadResult = await pool.query(
+      `INSERT INTO vendor_uploads (vendor_id, file_name, file_url, status, processed_at, error_message, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [
+        vendor.vendor_id,
+        req.file.originalname,
+        req.file.path,
+        productsCreated > 0 ? 'processed' : 'failed',
+        new Date(),
+        errors.length > 0 ? errors.join('; ') : null
+      ]
+    );
+
+    const vendorUpload = uploadResult.rows[0];
 
     res.json({
       message: `File uploaded successfully. ${productsCreated} products imported.`,
@@ -263,49 +262,46 @@ router.post('/upload-csv', upload.single('file'), async (req: AuthRequest, res: 
     });
 
     // Get vendor name from user
-    const user = await prisma.user.findUnique({
-      where: {
-        user_id: req.userId!,
-      },
-    });
+    const userResult = await pool.query(
+      'SELECT name, email FROM users WHERE user_id = $1',
+      [parseInt(req.userId!)]
+    );
 
-    const vendorName = user?.full_name || user?.email || 'Unknown Vendor';
+    const user = userResult.rows[0];
+    const vendorName = user?.name || user?.email || 'Unknown Vendor';
 
     // Process and insert products
     const products = [];
     for (const record of records) {
       try {
-        const product = await prisma.product.create({
-          data: {
-            name: record.name || record.product_name || '',
-            category: record.category || '',
-            subcategory: record.subcategory || null,
-            brand: record.brand || null,
-            variant: record.variant || null,
-            size: record.size || 'N/A',
-            price: parseFloat(record.price || '0'),
-            vendor: vendorName,
-            imageUrl: record.image_url || record.imageUrl || null,
-            isFeatured: record.is_featured === 'true' || record.is_featured === true,
-          },
-        });
-        products.push(product);
+        const productResult = await pool.query(
+          `INSERT INTO products (product_name, category_name, brand, variant_name, package_size, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+           RETURNING *`,
+          [
+            record.name || record.product_name || '',
+            record.category || '',
+            record.brand || null,
+            record.variant || null,
+            record.size || 'N/A'
+          ]
+        );
+        products.push(productResult.rows[0]);
       } catch (error) {
         console.error('Error creating product:', error);
         // Continue with next product
       }
     }
 
-    // Create upload record
-    const vendorUpload = await prisma.vendorUpload.create({
-      data: {
-        vendorId: req.userId!,
-        fileName: req.file.originalname,
-        fileUrl: req.file.path,
-        status: 'processed',
-        processedAt: new Date(),
-      },
-    });
+    // Create upload record (note: this route uses outdated schema, keeping minimal conversion)
+    const uploadRecordResult = await pool.query(
+      `INSERT INTO vendor_uploads (vendor_id, file_name, file_url, status, processed_at, created_at, updated_at)
+       VALUES ($1, $2, $3, 'processed', $4, NOW(), NOW())
+       RETURNING *`,
+      [parseInt(req.userId!), req.file.originalname, req.file.path, new Date()]
+    );
+
+    const vendorUpload = uploadRecordResult.rows[0];
 
     // Clean up uploaded file
     await fs.unlink(filePath);
@@ -322,27 +318,22 @@ router.post('/upload-csv', upload.single('file'), async (req: AuthRequest, res: 
 
 router.get('/products', async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: {
-        user_id: req.userId!,
-      },
-    });
+    const userResult = await pool.query(
+      'SELECT name, email FROM users WHERE user_id = $1',
+      [parseInt(req.userId!)]
+    );
 
-    const vendorName = user?.full_name || user?.email || 'Unknown Vendor';
+    const user = userResult.rows[0];
+    const vendorName = user?.name || user?.email || 'Unknown Vendor';
 
-    const products = await prisma.product.findMany({
-      where: {
-        vendor: {
-          contains: vendorName,
-          mode: 'insensitive',
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+    const productsResult = await pool.query(
+      `SELECT * FROM products
+       WHERE product_name ILIKE $1 OR brand ILIKE $1
+       ORDER BY created_at DESC`,
+      [`%${vendorName}%`]
+    );
 
-    res.json(products);
+    res.json(productsResult.rows);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -351,26 +342,25 @@ router.get('/products', async (req: AuthRequest, res: Response) => {
 router.get('/uploads', async (req: AuthRequest, res: Response) => {
   try {
     // Get vendor record for this user
-    const vendor = await prisma.vendors.findUnique({
-      where: {
-        user_id: parseInt(req.userId!),
-      },
-    });
+    const vendorResult = await pool.query(
+      'SELECT vendor_id FROM vendors WHERE user_id = $1',
+      [parseInt(req.userId!)]
+    );
+
+    const vendor = vendorResult.rows[0];
 
     if (!vendor) {
       return res.status(404).json({ error: 'Vendor profile not found' });
     }
 
-    const uploads = await prisma.vendor_uploads.findMany({
-      where: {
-        vendor_id: vendor.vendor_id,
-      },
-      orderBy: {
-        uploaded_at: 'desc',
-      },
-    });
+    const uploadsResult = await pool.query(
+      `SELECT * FROM vendor_uploads
+       WHERE vendor_id = $1
+       ORDER BY uploaded_at DESC`,
+      [vendor.vendor_id]
+    );
 
-    res.json(uploads);
+    res.json(uploadsResult.rows);
   } catch (error: any) {
     console.error('Error fetching uploads:', error);
     res.status(500).json({ error: error.message });

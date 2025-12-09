@@ -1,8 +1,6 @@
 import { Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+import pool from '../config/database';
 import { AuthRequest } from '../types';
-
-const prisma = new PrismaClient();
 
 export const checkVendorApproval = async (
   req: AuthRequest,
@@ -15,9 +13,12 @@ export const checkVendorApproval = async (
     }
 
     // Get the vendor profile for this user
-    const vendor = await prisma.vendors.findUnique({
-      where: { user_id: parseInt(req.userId) },
-    });
+    const result = await pool.query(
+      'SELECT vendor_id, is_approved FROM vendors WHERE user_id = $1',
+      [parseInt(req.userId)]
+    );
+
+    const vendor = result.rows[0];
 
     if (!vendor) {
       return res.status(403).json({ 

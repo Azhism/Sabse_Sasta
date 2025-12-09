@@ -1,6 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import pool from '../config/database';
 
 interface VendorOption {
   vendor: string;
@@ -31,35 +29,84 @@ interface MegaOption {
 
 export class ShoppingListService {
   static async createList(userId: string, name: string) {
-    return prisma.shopping_lists.create({
-      data: {
-        user_id: parseInt(userId),
-        list_name: name,
-      },
-      include: {
-        shopping_list_items: {
-          include: {
-            products: true,
-          },
-        },
-      },
-    });
+    const result = await pool.query(
+      `INSERT INTO shopping_lists (user_id, list_name)
+       VALUES ($1, $2)
+       RETURNING list_id, user_id, list_name`,
+      [parseInt(userId), name]
+    );
+
+    const list = result.rows[0];
+
+    // Fetch items for this list (will be empty for new list)
+    const itemsResult = await pool.query(
+      `SELECT sli.*, p.product_id, p.product_name, p.brand, p.package_size
+       FROM shopping_list_items sli
+       LEFT JOIN products p ON sli.product_id = p.product_id
+       WHERE sli.list_id = $1`,
+      [list.list_id]
+    );
+
+    // Transform items to have nested products object
+    const transformedItems = itemsResult.rows.map(row => ({
+      item_id: row.item_id,
+      list_id: row.list_id,
+      product_id: row.product_id,
+      quantity: row.quantity,
+      products: row.product_id ? {
+        product_id: row.product_id,
+        product_name: row.product_name,
+        brand: row.brand,
+        package_size: row.package_size
+      } : null
+    }));
+
+    return {
+      ...list,
+      shopping_list_items: transformedItems,
+    };
   }
 
   static async getUserLists(userId: string) {
-    return prisma.shopping_lists.findMany({
-      where: { user_id: parseInt(userId) },
-      include: {
-        shopping_list_items: {
-          include: {
-            products: true,
-          },
-        },
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+    const listsResult = await pool.query(
+      `SELECT * FROM shopping_lists
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [parseInt(userId)]
+    );
+
+    const lists = await Promise.all(
+      listsResult.rows.map(async (list) => {
+        const itemsResult = await pool.query(
+          `SELECT sli.*, p.product_id, p.product_name, p.brand, p.package_size
+           FROM shopping_list_items sli
+           LEFT JOIN products p ON sli.product_id = p.product_id
+           WHERE sli.list_id = $1`,
+          [list.list_id]
+        );
+
+        // Transform items to have nested products object
+        const transformedItems = itemsResult.rows.map(row => ({
+          item_id: row.item_id,
+          list_id: row.list_id,
+          product_id: row.product_id,
+          quantity: row.quantity,
+          products: row.product_id ? {
+            product_id: row.product_id,
+            product_name: row.product_name,
+            brand: row.brand,
+            package_size: row.package_size
+          } : null
+        }));
+
+        return {
+          ...list,
+          shopping_list_items: transformedItems,
+        };
+      })
+    );
+
+    return lists;
   }
 
   static async getListById(listId: string, userId: string) {
@@ -74,25 +121,44 @@ export class ShoppingListService {
       throw new Error('Invalid list ID: must be a number');
     }
     
-    const list = await prisma.shopping_lists.findFirst({
-      where: {
-        list_id: listIdNum,
-        user_id: parseInt(userId),
-      },
-      include: {
-        shopping_list_items: {
-          include: {
-            products: true,
-          },
-        },
-      },
-    });
+    const listResult = await pool.query(
+      `SELECT * FROM shopping_lists
+       WHERE list_id = $1 AND user_id = $2`,
+      [listIdNum, parseInt(userId)]
+    );
 
-    if (!list) {
+    if (listResult.rows.length === 0) {
       throw new Error('Shopping list not found');
     }
 
-    return list;
+    const list = listResult.rows[0];
+
+    const itemsResult = await pool.query(
+      `SELECT sli.*, p.product_id, p.product_name, p.brand, p.package_size
+       FROM shopping_list_items sli
+       LEFT JOIN products p ON sli.product_id = p.product_id
+       WHERE sli.list_id = $1`,
+      [listIdNum]
+    );
+
+    // Transform items to have nested products object
+    const transformedItems = itemsResult.rows.map(row => ({
+      item_id: row.item_id,
+      list_id: row.list_id,
+      product_id: row.product_id,
+      quantity: row.quantity,
+      products: row.product_id ? {
+        product_id: row.product_id,
+        product_name: row.product_name,
+        brand: row.brand,
+        package_size: row.package_size
+      } : null
+    }));
+
+    return {
+      ...list,
+      shopping_list_items: transformedItems,
+    };
   }
 
   static async updateList(listId: string, userId: string, name: string) {
@@ -100,19 +166,43 @@ export class ShoppingListService {
     
     // Convert listId to integer if it's a valid number
     const listIdNum = parseInt(listId, 10);
-    const listIdFilter = isNaN(listIdNum) ? listId : listIdNum;
 
-    return prisma.shopping_lists.update({
-      where: { list_id: listIdNum },
-      data: { list_name: name },
-      include: {
-        shopping_list_items: {
-          include: {
-            products: true,
-          },
-        },
-      },
-    });
+    const result = await pool.query(
+      `UPDATE shopping_lists
+       SET list_name = $1
+       WHERE list_id = $2
+       RETURNING *`,
+      [name, listIdNum]
+    );
+
+    const updatedList = result.rows[0];
+
+    const itemsResult = await pool.query(
+      `SELECT sli.*, p.product_id, p.product_name, p.brand, p.package_size
+       FROM shopping_list_items sli
+       LEFT JOIN products p ON sli.product_id = p.product_id
+       WHERE sli.list_id = $1`,
+      [listIdNum]
+    );
+
+    // Transform items to have nested products object
+    const transformedItems = itemsResult.rows.map(row => ({
+      item_id: row.item_id,
+      list_id: row.list_id,
+      product_id: row.product_id,
+      quantity: row.quantity,
+      products: row.product_id ? {
+        product_id: row.product_id,
+        product_name: row.product_name,
+        brand: row.brand,
+        package_size: row.package_size
+      } : null
+    }));
+
+    return {
+      ...updatedList,
+      shopping_list_items: transformedItems,
+    };
   }
 
   static async deleteList(listId: string, userId: string) {
@@ -120,18 +210,19 @@ export class ShoppingListService {
     
     // Convert listId to integer if it's a valid number
     const listIdNum = parseInt(listId, 10);
-    const listIdFilter = isNaN(listIdNum) ? listId : listIdNum;
 
     // Remove all items first to avoid FK constraints
-    await prisma.shopping_list_items.deleteMany({
-      where: {
-        list_id: listIdNum,
-      },
-    });
+    await pool.query(
+      'DELETE FROM shopping_list_items WHERE list_id = $1',
+      [listIdNum]
+    );
 
-    return prisma.shopping_lists.delete({
-      where: { list_id: listIdNum },
-    });
+    const result = await pool.query(
+      'DELETE FROM shopping_lists WHERE list_id = $1 RETURNING *',
+      [listIdNum]
+    );
+
+    return result.rows[0];
   }
 
   static async clearAllItems(listId: string, userId: string) {
@@ -141,11 +232,12 @@ export class ShoppingListService {
     const listIdNum = parseInt(listId, 10);
 
     // Remove all items from the list
-    return prisma.shopping_list_items.deleteMany({
-      where: {
-        list_id: listIdNum,
-      },
-    });
+    const result = await pool.query(
+      'DELETE FROM shopping_list_items WHERE list_id = $1',
+      [listIdNum]
+    );
+    
+    return { count: result.rowCount };
   }
 
   static async addItemToList(
@@ -159,41 +251,59 @@ export class ShoppingListService {
     // Convert listId and productId to integers if they're valid numbers
     const listIdNum = parseInt(listId, 10);
     const productIdNum = parseInt(productId, 10);
-    const listIdFilter = isNaN(listIdNum) ? listId : listIdNum;
-    const productIdFilter = isNaN(productIdNum) ? productId : productIdNum;
 
-    // Check if item already exists - use Prisma field names (camelCase)
-    const existingItem = await prisma.shopping_list_items.findFirst({
-      where: {
-        list_id: listIdNum,
-        product_id: productIdNum,
-      },
-    });
+    // Check if item already exists
+    const existingItemResult = await pool.query(
+      `SELECT * FROM shopping_list_items
+       WHERE list_id = $1 AND product_id = $2`,
+      [listIdNum, productIdNum]
+    );
 
-    if (existingItem) {
-      // Get the primary key field name (could be item_id or id)
-      const itemPrimaryKey = (existingItem as any).item_id || (existingItem as any).id;
-      return prisma.shopping_list_items.update({
-        where: { item_id: itemPrimaryKey },
-        data: { 
-          quantity: ((existingItem.quantity || 0) + quantity),
-        },
-        include: {
-          products: true,
-        },
-      });
+    if (existingItemResult.rows.length > 0) {
+      const existingItem = existingItemResult.rows[0];
+      const itemPrimaryKey = existingItem.item_id || existingItem.id;
+      
+      const updateResult = await pool.query(
+        `UPDATE shopping_list_items
+         SET quantity = $1
+         WHERE item_id = $2
+         RETURNING *`,
+        [(existingItem.quantity || 0) + quantity, itemPrimaryKey]
+      );
+
+      const updatedItem = updateResult.rows[0];
+
+      // Fetch product details
+      const productResult = await pool.query(
+        'SELECT * FROM products WHERE product_id = $1',
+        [productIdNum]
+      );
+
+      return {
+        ...updatedItem,
+        products: productResult.rows[0],
+      };
     }
 
-    return prisma.shopping_list_items.create({
-      data: {
-        list_id: listIdNum,
-        product_id: productIdNum,
-        quantity: quantity,
-      },
-      include: {
-        products: true,
-      },
-    });
+    const insertResult = await pool.query(
+      `INSERT INTO shopping_list_items (list_id, product_id, quantity)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [listIdNum, productIdNum, quantity]
+    );
+
+    const newItem = insertResult.rows[0];
+
+    // Fetch product details
+    const productResult = await pool.query(
+      'SELECT * FROM products WHERE product_id = $1',
+      [productIdNum]
+    );
+
+    return {
+      ...newItem,
+      products: productResult.rows[0],
+    };
   }
 
   static async updateListItem(
@@ -216,18 +326,33 @@ export class ShoppingListService {
     }
 
     if (quantity <= 0) {
-      return prisma.shopping_list_items.delete({
-        where: { item_id: itemIdNum },
-      });
+      const result = await pool.query(
+        'DELETE FROM shopping_list_items WHERE item_id = $1 RETURNING *',
+        [itemIdNum]
+      );
+      return result.rows[0];
     }
 
-    return prisma.shopping_list_items.update({
-      where: { item_id: itemIdNum },
-      data: { quantity: quantity },
-      include: {
-        products: true,
-      },
-    });
+    const updateResult = await pool.query(
+      `UPDATE shopping_list_items
+       SET quantity = $1
+       WHERE item_id = $2
+       RETURNING *`,
+      [quantity, itemIdNum]
+    );
+
+    const updatedItem = updateResult.rows[0];
+
+    // Fetch product details
+    const productResult = await pool.query(
+      'SELECT * FROM products WHERE product_id = $1',
+      [updatedItem.product_id]
+    );
+
+    return {
+      ...updatedItem,
+      products: productResult.rows[0],
+    };
   }
 
   static async removeItemFromList(
@@ -248,9 +373,12 @@ export class ShoppingListService {
       throw new Error('Invalid item ID: must be a number');
     }
 
-    return prisma.shopping_list_items.delete({
-      where: { item_id: itemIdNum },
-    });
+    const result = await pool.query(
+      'DELETE FROM shopping_list_items WHERE item_id = $1 RETURNING *',
+      [itemIdNum]
+    );
+
+    return result.rows[0];
   }
 
   static async calculateShoppingListCosts(listId: string, userId: string): Promise<{
@@ -270,14 +398,14 @@ export class ShoppingListService {
     // Fetch vendor listings joined with vendors so we always have vendor names
     let vendorListings: any[] = [];
     try {
-      const listingsQuery = Prisma.sql`
+      const listingsResult = await pool.query(`
         SELECT 
           vl.*,
           v.vendor_name AS vendor_name
         FROM vendor_listings vl
         LEFT JOIN vendors v ON vl.vendor_id = v.vendor_id
-      `;
-      vendorListings = await prisma.$queryRaw(listingsQuery) as any[];
+      `);
+      vendorListings = listingsResult.rows;
     } catch (error: any) {
       console.error('Failed to fetch vendor listings with vendor names:', error.message);
       return {
@@ -300,11 +428,11 @@ export class ShoppingListService {
       { display_name?: string; product_name?: string; base_product_name?: string }
     >();
     try {
-      const productsRaw = await prisma.$queryRaw(Prisma.sql`
+      const productsResult = await pool.query(`
         SELECT product_id, display_name, product_name, base_product_name
         FROM products
-      `) as any[];
-      productsRaw.forEach((product) => {
+      `);
+      productsResult.rows.forEach((product) => {
         const id =
           product.product_id?.toString() ||
           product.id?.toString() ||

@@ -1,7 +1,5 @@
-import { Prisma, PrismaClient } from '@prisma/client';
+import pool from '../config/database';
 import { ProductSearchQuery } from '../types';
-
-const prisma = new PrismaClient();
 
 interface NormalizedProduct {
   id: string | null;
@@ -137,16 +135,16 @@ const getListingPrice = (listing: any): number | null => {
 export class ProductService {
   private static async fetchAllProducts(): Promise<any[]> {
     const attempts = [
-      Prisma.sql`SELECT * FROM products ORDER BY product_id ASC`,
-      Prisma.sql`SELECT * FROM products ORDER BY id ASC`,
-      Prisma.sql`SELECT * FROM products`,
+      'SELECT * FROM products ORDER BY product_id ASC',
+      'SELECT * FROM products ORDER BY id ASC',
+      'SELECT * FROM products',
     ];
 
     for (const query of attempts) {
       try {
-        const rows = (await prisma.$queryRaw(query)) as any[];
-        if (Array.isArray(rows)) {
-          return rows;
+        const result = await pool.query(query);
+        if (Array.isArray(result.rows)) {
+          return result.rows;
         }
       } catch (error: any) {
         console.warn('Product query attempt failed:', error.message);
@@ -163,13 +161,14 @@ export class ProductService {
 
   private static async fetchVendorListings(): Promise<any[]> {
     try {
-      return (await prisma.$queryRaw(Prisma.sql`
+      const result = await pool.query(`
         SELECT 
           vl.*,
           v.vendor_name
         FROM vendor_listings vl
         LEFT JOIN vendors v ON vl.vendor_id = v.vendor_id
-      `)) as any[];
+      `);
+      return result.rows;
     } catch (error: any) {
       console.warn('Failed to fetch vendor listings:', error.message);
       return [];

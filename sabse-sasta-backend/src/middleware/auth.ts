@@ -40,17 +40,16 @@ export const requireVendor = async (
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
+    const pool = (await import('../config/database')).default;
 
-    const user = await prisma.users.findUnique({
-      where: {
-        user_id: parseInt(req.userId as string),
-      },
-    });
+    const result = await pool.query(
+      'SELECT user_id, user_type FROM users WHERE user_id = $1',
+      [parseInt(req.userId as string)]
+    );
+
+    const user = result.rows[0];
 
     if (!user || user.user_type !== 'vendor') {
-      await prisma.$disconnect();
       return res.status(403).json({ error: 'Vendor access required' });
     }
 
@@ -59,7 +58,6 @@ export const requireVendor = async (
       role: 'vendor',
     };
 
-    await prisma.$disconnect();
     next();
   } catch (error) {
     console.error('Error checking vendor role:', error);

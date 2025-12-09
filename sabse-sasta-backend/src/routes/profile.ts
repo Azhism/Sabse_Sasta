@@ -1,20 +1,20 @@
 import { Router, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import pool from '../config/database';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // All routes require authentication
 router.use(authenticate);
 
 router.get('/', async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.users.findUnique({
-      where: {
-        user_id: parseInt(req.userId as string),
-      },
-    });
+    const result = await pool.query(
+      'SELECT user_id, email, name, user_type FROM users WHERE user_id = $1',
+      [parseInt(req.userId as string)]
+    );
+    
+    const user = result.rows[0];
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -37,14 +37,15 @@ router.put('/', async (req: AuthRequest, res: Response) => {
   try {
     const { fullName, phone } = req.body;
 
-    const user = await prisma.users.update({
-      where: {
-        user_id: parseInt(req.userId as string),
-      },
-      data: {
-        name: fullName || undefined,
-      },
-    });
+    const result = await pool.query(
+      `UPDATE users
+       SET name = COALESCE($1, name), updated_at = NOW()
+       WHERE user_id = $2
+       RETURNING user_id, email, name, user_type`,
+      [fullName || null, parseInt(req.userId as string)]
+    );
+
+    const user = result.rows[0];
 
     res.json({
       id: user.user_id,

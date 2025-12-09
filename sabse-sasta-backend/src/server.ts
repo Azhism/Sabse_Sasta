@@ -1,14 +1,14 @@
+// Load environment variables FIRST - before ANY other imports
+import './loadEnv';
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import productRoutes from './routes/products';
 import shoppingListRoutes from './routes/shoppingLists';
 import vendorRoutes from './routes/vendors';
 import profileRoutes from './routes/profile';
 import orderRoutes from './routes/orders';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
