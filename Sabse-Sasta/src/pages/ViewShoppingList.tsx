@@ -82,7 +82,7 @@ const ViewShoppingList = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { addMultipleToCart } = useCart();
+  const { addMultipleToCart, addToCart } = useCart();
   
   const [listName, setListName] = useState("");
   const [editingName, setEditingName] = useState(false);
@@ -375,6 +375,97 @@ const ViewShoppingList = () => {
     );
   });
 
+  const addItemToCart = async (item: ListItem) => {
+    // Fetch product details to get price and vendor info
+    try {
+      const productDetails = await productsAPI.getVendorsByProduct(item.product_id);
+      
+      if (!productDetails || !productDetails.vendors || productDetails.vendors.length === 0) {
+        toast({
+          title: "Error",
+          description: "No vendors available for this product",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Add first vendor option (cheapest one)
+      const firstVendor = productDetails.vendors[0];
+      const product = productDetails.product;
+      
+      addToCart({
+        id: `${item.product_id}-${firstVendor.vendorName}`,
+        productId: item.product_id,
+        name: item.products?.name || product?.name || product?.base_product_name || "Product",
+        category: item.products?.category || product?.category_name || "",
+        brand: item.products?.brand || product?.brand || "",
+        size: product?.package_size || "",
+        price: firstVendor.price || 0,
+        vendor: firstVendor.vendorName || "Unknown",
+        quantity: item.quantity,
+      });
+
+      toast({
+        title: "Added to cart",
+        description: `${item.products?.name || "Item"} added to cart`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add item to cart",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addAllItemsToCart = async () => {
+    if (items.length === 0) {
+      toast({
+        title: "No items",
+        description: "Add items to your shopping list first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Adding items...",
+      description: "Please wait while we add all items to cart",
+    });
+
+    let successCount = 0;
+    for (const item of items) {
+      try {
+        const productDetails = await productsAPI.getVendorsByProduct(item.product_id);
+        if (productDetails && productDetails.vendors && productDetails.vendors.length > 0) {
+          const firstVendor = productDetails.vendors[0];
+          const product = productDetails.product;
+          addToCart({
+            id: `${item.product_id}-${firstVendor.vendorName}`,
+            productId: item.product_id,
+            name: item.products?.name || product?.name || product?.base_product_name || "Product",
+            category: item.products?.category || product?.category_name || "",
+            brand: item.products?.brand || product?.brand || "",
+            size: product?.package_size || "",
+            price: firstVendor.price || 0,
+            vendor: firstVendor.vendorName || "Unknown",
+            quantity: item.quantity,
+          });
+          successCount++;
+        }
+      } catch (error) {
+        console.error(`Failed to add item ${item.product_id}:`, error);
+      }
+    }
+
+    toast({
+      title: "Success",
+      description: `${successCount} of ${items.length} items added to cart`,
+    });
+
+    navigate("/cart");
+  };
+
   const moveToCart = (vendor: VendorCost) => {
     const itemsToAdd = vendor.items.map(item => ({
       id: `${item.productId}-${vendor.vendor}`,
@@ -631,7 +722,7 @@ const ViewShoppingList = () => {
                       .join(" • ");
                     return (
                       <div key={item.id} className="flex justify-between items-center p-3 border rounded-lg">
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium">{productName}</p>
                           {productMeta && (
                             <p className="text-sm text-muted-foreground">{productMeta}</p>
@@ -660,6 +751,14 @@ const ViewShoppingList = () => {
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addItemToCart(item)}
+                          className="h-8"
+                        >
+                          <ShoppingCart className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

@@ -19,10 +19,10 @@ pool.on('connect', () => {
   console.log('✅ Database connected successfully');
 });
 
-// Log errors
+// Log errors (but don't exit process - let the app handle errors gracefully)
 pool.on('error', (err) => {
   console.error('❌ Unexpected database error:', err);
-  process.exit(-1);
+  // Don't exit - this allows the app to handle the error and potentially reconnect
 });
 
 export default pool;

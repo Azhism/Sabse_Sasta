@@ -11,10 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 interface Upload {
-  id: string;
+  upload_id: number;
   file_name: string;
   status: string;
   uploaded_at: string;
+  products_count: number;
+  error_message?: string;
 }
 
 const VendorDashboard = () => {
@@ -208,7 +210,7 @@ const VendorDashboard = () => {
                 <div className="space-y-3">
                   {uploads.map((upload) => (
                     <div
-                      key={upload.id}
+                      key={upload.upload_id}
                       className="flex items-center justify-between p-4 border rounded-lg"
                     >
                       <div className="flex items-center gap-3">
@@ -224,10 +226,15 @@ const VendorDashboard = () => {
                               minute: "2-digit",
                             })}
                           </p>
+                          {upload.products_count > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {upload.products_count} products imported
+                            </p>
+                          )}
                         </div>
                       </div>
                       <Badge
-                        variant={upload.status === "processed" ? "default" : "secondary"}
+                        variant={upload.status === "processed" ? "default" : upload.status === "failed" ? "destructive" : "secondary"}
                         className="flex items-center gap-1"
                       >
                         {upload.status === "processed" ? (
@@ -238,7 +245,7 @@ const VendorDashboard = () => {
                         ) : (
                           <>
                             <Clock className="h-3 w-3" />
-                            Pending
+                            {upload.status}
                           </>
                         )}
                       </Badge>

@@ -88,13 +88,27 @@ export default function Checkout() {
         })),
       });
 
-      // Clear cart and redirect
+      // Clear cart and redirect to order review
       clearCart();
-      toast({
-        title: "Order placed successfully!",
-        description: "Your order has been confirmed. We'll deliver it soon.",
+      navigate("/order-review", {
+        state: {
+          orderData: {
+            orderId: order.id,
+            items: items.map((item) => ({
+              name: item.name,
+              size: item.size,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+            customerName: formData.customerName,
+            phone: formData.phone,
+            deliveryAddress: formData.deliveryAddress,
+            subtotalAmount: itemsTotal,
+            deliveryFee: DELIVERY_FEE,
+            totalAmount: totalWithDelivery,
+          },
+        },
       });
-      navigate("/");
     } catch (error: any) {
       console.error("Error placing order:", error);
       toast({

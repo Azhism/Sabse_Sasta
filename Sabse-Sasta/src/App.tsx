@@ -14,6 +14,7 @@ import SearchResults from "./pages/SearchResults";
 import ProductVendors from "./pages/ProductVendors";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
+import OrderReview from "./pages/OrderReview";
 import ShoppingLists from "./pages/ShoppingLists";
 import CreateShoppingList from "./pages/CreateShoppingList";
 import ViewShoppingList from "./pages/ViewShoppingList";
@@ -50,6 +51,7 @@ const App = () => (
                 <Route path="/products/:id/vendors" element={<VendorProtectedRoute><ProductVendors /></VendorProtectedRoute>} />
                 <Route path="/cart" element={<VendorProtectedRoute><Cart /></VendorProtectedRoute>} />
                 <Route path="/checkout" element={<VendorProtectedRoute><Checkout /></VendorProtectedRoute>} />
+                <Route path="/order-review" element={<VendorProtectedRoute><OrderReview /></VendorProtectedRoute>} />
                 <Route path="/shopping-lists" element={<VendorProtectedRoute><ShoppingLists /></VendorProtectedRoute>} />
                 <Route path="/shopping-lists/new" element={<VendorProtectedRoute><CreateShoppingList /></VendorProtectedRoute>} />
                 <Route path="/shopping-lists/:id" element={<VendorProtectedRoute><ViewShoppingList /></VendorProtectedRoute>} />

@@ -111,6 +111,10 @@ export const productsAPI = {
     return apiRequest<any[]>('/products');
   },
 
+  getById: async (productId: string) => {
+    return apiRequest<any[]>(`/products/${productId}`);
+  },
+
   getVendorsByProduct: async (productId: string) => {
     return apiRequest<{
       product: any;
@@ -235,6 +239,19 @@ export const ordersAPI = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+  confirm: async (orderId: string) => {
+    return apiRequest<any>(`/orders/${orderId}/confirm`, {
+      method: 'POST',
+    });
+  },
+  cancel: async (orderId: string) => {
+    return apiRequest<any>(`/orders/${orderId}/cancel`, {
+      method: 'POST',
+    });
+  },
+  getById: async (orderId: string) => {
+    return apiRequest<any>(`/orders/${orderId}`);
   },
 };
 
