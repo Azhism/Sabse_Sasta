@@ -26,12 +26,11 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 // Load the Client ID from environment variables
-const GOOGLE_CLIENT_ID = 
-  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-  '1099303988282-2se56am1u6pal616e6vho7v8a34cift1.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-console.log('Google Client ID loaded:', GOOGLE_CLIENT_ID ? 'Yes' : 'No - MISSING!');
-console.log('Env check:', import.meta.env.VITE_GOOGLE_CLIENT_ID);
+if (!GOOGLE_CLIENT_ID) {
+  console.error('Error: VITE_GOOGLE_CLIENT_ID environment variable is not set!');
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
