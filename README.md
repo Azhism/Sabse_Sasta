@@ -224,7 +224,7 @@ VITE_GOOGLE_CLIENT_ID=your_google_client_id_here
 ```bash
 cd sabse-sasta-backend
 cp .env.example .env
-# Edit .env and fill in all configuration values
+# Edit .env and fill in all configuration value
 ```
 
 **Backend `.env` variables:**
@@ -263,7 +263,7 @@ cd sabse-sasta-backend
 # Create database
 createdb sabse_sasta
 
-# Run migrations
+# Run migration
 npm run prisma:migrate
 
 # (Optional) Open Prisma Studio to view/manage data
